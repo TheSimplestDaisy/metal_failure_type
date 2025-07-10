@@ -6,20 +6,19 @@ from PIL import Image
 import os
 import gdown
 
-# === Settings ===
+# === Manual label names (ganti ikut class sebenar anda) ===
+label_names = ["aluminum", "steel", "titanium"]  # 🔁 EDIT jika perlu
+
+# === Google Drive model config ===
 MODEL_FILE = "metal_fracture_classifier_efficientnet.pt"
-GDRIVE_ID = "1PzbRYmktxwCRoff9kr6_cj28wBqPjzHq"  # 🔁 Ganti dengan ID anda
+GDRIVE_ID = "1PzbRYmktxwCRoff9kr6_cj28wBqPjzHq"
 GDRIVE_URL = f"https://drive.google.com/file/d/1PzbRYmktxwCRoff9kr6_cj28wBqPjzHq/view?usp=drive_link"
 
-# === Manual label names (update if needed) ===
-label_names = ["aluminum", "steel", "titanium"]  # Contoh. Ubah ikut class sebenar
-
-# === Download model if not exists ===
 @st.cache_resource
 def load_model():
     if not os.path.exists(MODEL_FILE):
-        with st.spinner("📥 Downloading model..."):
-            gdown.download(GDRIVE_URL, MODEL_FILE, quiet=False)
+        st.info("📥 Downloading model...")
+        gdown.download(GDRIVE_URL, MODEL_FILE, quiet=False)
 
     model = models.efficientnet_b0(weights=None)
     model.classifier = nn.Sequential(
@@ -32,7 +31,7 @@ def load_model():
 
 model = load_model()
 
-# === Transform ===
+# === Image transform ===
 transform = transforms.Compose([
     transforms.Resize((224, 224)),
     transforms.ToTensor(),
@@ -40,8 +39,8 @@ transform = transforms.Compose([
                          [0.229, 0.224, 0.225])
 ])
 
-# === UI ===
-st.title("🔩 Metal Fracture Type Classifier (EfficientNet)")
+# === Streamlit UI ===
+st.title("🔍 Metal Fracture Type Classifier")
 uploaded_file = st.file_uploader("Upload an image", type=["jpg", "jpeg", "png"])
 
 if uploaded_file:
@@ -56,9 +55,11 @@ if uploaded_file:
         confidence, predicted = torch.max(probabilities, 0)
 
     predicted_label = label_names[predicted.item()]
-    st.success(f"✅ Predicted: **{predicted_label}**\n📊 Confidence: **{confidence.item()*100:.2f}%**")
+    st.success(f"✅ Predicted Class: {predicted_label}  \n📊 Confidence: {confidence.item() * 100:.2f}%")
 
+    # Top 3 prediction display
     st.subheader("🔝 Top 3 Predictions")
     top3_prob, top3_idx = torch.topk(probabilities, 3)
     for i in range(3):
         st.write(f"{label_names[top3_idx[i]]}: {top3_prob[i].item() * 100:.2f}%")
+
