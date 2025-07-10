@@ -11,7 +11,7 @@ label_names = ["aluminum", "steel", "titanium"]  # Ubah ikut kelas sebenar
 
 # === Google Drive model config ===
 MODEL_FILE = "metal_fracture_classifier_efficientnet.pt"
-GDRIVE_URL = "https://drive.google.com/uc?id=1PzbRYmktxwCRoff9kr6_cj28wBqPjzHq"
+GDRIVE_URL = "GDRIVE_URL = "https://drive.google.com/uc?id=1PzbRYmktxwCRoff9kr6_cj28wBqPjzHq""
 
 @st.cache_resource
 def load_model():
