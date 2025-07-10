@@ -7,16 +7,16 @@ import os
 import gdown
 
 # === Manual label names ===
-label_names = ["aluminum", "steel", "titanium"]  # Ubah ikut kelas sebenar
+label_names = ["aluminum", "steel", "titanium"]
 
 # === Google Drive model config ===
 MODEL_FILE = "metal_fracture_classifier_efficientnet.pt"
-GDRIVE_URL = "GDRIVE_URL = "https://drive.google.com/uc?id=1PzbRYmktxwCRoff9kr6_cj28wBqPjzHq""
+GDRIVE_URL = "https://drive.google.com/uc?id=1PzbRYmktxwCRoff9kr6_cj28wBqPjzHq"
 
 @st.cache_resource
 def load_model():
     if not os.path.exists(MODEL_FILE):
-        st.info("📥 Downloading model...")
+        st.info("📥 Downloading model from Google Drive...")
         gdown.download(GDRIVE_URL, MODEL_FILE, quiet=False)
 
     model = models.efficientnet_b0(weights=None)
@@ -39,7 +39,7 @@ transform = transforms.Compose([
 ])
 
 # === Streamlit UI ===
-st.title("🔍 Metal Fracture Type Classifier")
+st.title("🔩 Metal Fracture Type Classifier")
 uploaded_file = st.file_uploader("Upload an image", type=["jpg", "jpeg", "png"])
 
 if uploaded_file:
@@ -61,5 +61,3 @@ if uploaded_file:
     top3_prob, top3_idx = torch.topk(probabilities, 3)
     for i in range(3):
         st.write(f"{label_names[top3_idx[i]]}: {top3_prob[i].item() * 100:.2f}%")
-
-
