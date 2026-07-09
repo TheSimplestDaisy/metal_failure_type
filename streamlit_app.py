@@ -1,73 +1,81 @@
-import streamlit as st
+Ini full corrected code:
+
+```python
+# -*- coding: utf-8 -*-
+
 import torch
-import torch.nn as nn
+import torch.nn.functional as F
 from torchvision import models, transforms
 from PIL import Image
+import streamlit as st
 import os
-import gdown
 
-# === Manual label names ===
-label_names = ["aluminum", "steel", "titanium"]  # 🔁 EDIT ikut kelas sebenar anda
+# Directory where this script is running
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+MODEL_PATH = os.path.join(BASE_DIR, "metal_fracture_classifier.pt")
 
-# === Google Drive download URL ===
-MODEL_FILE = "metal_fracture_classifier_efficientnet.pt"
-GDRIVE_URL = "https://drive.google.com/uc?id=1PzbRYmktxwCRoff9kr6_cj28wBqPjzHq"
+# Class labels
+class_labels = [
+    'brittle_fracture',
+    'crack_fracture',
+    'ductile_dimple_fracture',
+    'fatigue_line_pattern',
+    'intergranular_brittle_fracture',
+    'river_pattern'
+]
 
-@st.cache_resource
-def load_model():
-    # 1) Download model if belum ada
-    if not os.path.exists(MODEL_FILE):
-        st.info("📥 Downloading model...")
-        gdown.download(GDRIVE_URL, MODEL_FILE, quiet=False)
+# Check model file
+if not os.path.exists(MODEL_PATH):
+    st.error("Model file not found. Please make sure 'metal_fracture_classifier.pt' is in the same folder as this script.")
+    st.stop()
 
-    # 2) Siapkan arsitektur model
-    model = models.efficientnet_b0(weights=None)
-    model.classifier = nn.Sequential(
-        nn.Dropout(p=0.4),
-        nn.Linear(model.classifier[1].in_features, len(label_names))
-    )
+# Load model
+model = models.resnet18()
+model.fc = torch.nn.Linear(model.fc.in_features, len(class_labels))
 
-    # 3) Load berat model
-    try:
-        # cuba sebagai state_dict
-        state = torch.load(MODEL_FILE, map_location="cpu")
-        model.load_state_dict(state)
-    except (RuntimeError, pickle.UnpicklingError):
-        # kalau gagal, cuba load full-model
-        model = torch.load(MODEL_FILE, map_location="cpu")
-    model.eval()
-    return model
+model.load_state_dict(torch.load(MODEL_PATH, map_location=torch.device('cpu')))
+model.eval()
 
-model = load_model()
-
-# === Preprocessing ===
+# Preprocessing
 transform = transforms.Compose([
     transforms.Resize((224, 224)),
     transforms.ToTensor(),
-    transforms.Normalize([0.485, 0.456, 0.406],
-                         [0.229, 0.224, 0.225])
+    transforms.Normalize(
+        mean=[0.485, 0.456, 0.406],
+        std=[0.229, 0.224, 0.225]
+    )
 ])
 
-# === Streamlit UI ===
-st.title("🔩 Metal Fracture Type Classifier")
+# Streamlit UI
+st.title("Metal Fracture Type Classifier")
 
-uploaded_file = st.file_uploader("Upload an image", type=["jpg", "jpeg", "png"])
-if uploaded_file:
-    img = Image.open(uploaded_file).convert("RGB")
-    st.image(img, caption="Uploaded Image", use_container_width=True)
+uploaded_file = st.file_uploader(
+    "Upload Fracture Image",
+    type=["jpg", "png", "jpeg"]
+)
 
-    # inference
-    x = transform(img).unsqueeze(0)
+if uploaded_file is not None:
+    image = Image.open(uploaded_file).convert("RGB")
+
+    st.image(
+        image,
+        caption="Uploaded Image",
+        use_container_width=True
+    )
+
+    # Preprocess image
+    img_tensor = transform(image).unsqueeze(0)
+
+    # Prediction
     with torch.no_grad():
-        out = model(x)
-        probs = torch.nn.functional.softmax(out[0], dim=0)
-        conf, pred = torch.max(probs, 0)
+        output = model(img_tensor)
+        probabilities = F.softmax(output, dim=1)[0]
+        confidence, predicted_class = torch.max(probabilities, 0)
 
-    label = label_names[pred.item()]
-    st.success(f"✅ Predicted: **{label}** ({conf.item()*100:.2f}%)")
+    predicted_label = class_labels[predicted_class.item()]
+    confidence_percent = confidence.item() * 100
 
-    # Top-3
-    st.subheader("🔝 Top 3 Predictions")
-    top3_p, top3_i = torch.topk(probs, 3)
-    for i in range(3):
-        st.write(f"{label_names[top3_i[i]]}: {top3_p[i].item()*100:.2f}%")
+    st.success(
+        f"Prediction: **{predicted_label}** ({confidence_percent:.2f}%)"
+    )
+```
