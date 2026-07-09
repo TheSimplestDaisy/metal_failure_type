@@ -1,6 +1,3 @@
-```python
-# -*- coding: utf-8 -*-
-
 import torch
 import torch.nn.functional as F
 from torchvision import models, transforms
