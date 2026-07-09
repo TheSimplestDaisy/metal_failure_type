@@ -1,5 +1,3 @@
-Ini full corrected code:
-
 ```python
 # -*- coding: utf-8 -*-
 
