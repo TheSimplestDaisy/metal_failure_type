@@ -1,37 +1,53 @@
+import os
 import torch
 import torch.nn.functional as F
 from torchvision import models, transforms
 from PIL import Image
 import streamlit as st
-import os
 
-# Directory where this script is running
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_PATH = os.path.join(BASE_DIR, "metal_fracture_classifier.pt")
 
-# Class labels
 class_labels = [
-    'brittle_fracture',
-    'crack_fracture',
-    'ductile_dimple_fracture',
-    'fatigue_line_pattern',
-    'intergranular_brittle_fracture',
-    'river_pattern'
+    "brittle_fracture",
+    "crack_fracture",
+    "ductile_dimple_fracture",
+    "fatigue_line_pattern",
+    "intergranular_brittle_fracture",
+    "river_pattern"
 ]
 
-# Check model file
+st.title("Metal Fracture Type Classifier")
+
 if not os.path.exists(MODEL_PATH):
-    st.error("Model file not found. Please make sure 'metal_fracture_classifier.pt' is in the same folder as this script.")
+    st.error("Model file not found: metal_fracture_classifier.pt")
     st.stop()
 
-# Load model
-model = models.resnet18()
+model = models.resnet18(weights=None)
 model.fc = torch.nn.Linear(model.fc.in_features, len(class_labels))
 
-model.load_state_dict(torch.load(MODEL_PATH, map_location=torch.device('cpu')))
-model.eval()
+try:
+    checkpoint = torch.load(MODEL_PATH, map_location=torch.device("cpu"))
 
-# Preprocessing
+    if isinstance(checkpoint, dict):
+        if "state_dict" in checkpoint:
+            checkpoint = checkpoint["state_dict"]
+        elif "model_state_dict" in checkpoint:
+            checkpoint = checkpoint["model_state_dict"]
+
+    new_state_dict = {}
+    for key, value in checkpoint.items():
+        new_key = key.replace("module.", "").replace("model.", "")
+        new_state_dict[new_key] = value
+
+    model.load_state_dict(new_state_dict)
+    model.eval()
+
+except Exception as e:
+    st.error("Model loading error.")
+    st.code(str(e))
+    st.stop()
+
 transform = transforms.Compose([
     transforms.Resize((224, 224)),
     transforms.ToTensor(),
@@ -41,12 +57,9 @@ transform = transforms.Compose([
     )
 ])
 
-# Streamlit UI
-st.title("Metal Fracture Type Classifier")
-
 uploaded_file = st.file_uploader(
     "Upload Fracture Image",
-    type=["jpg", "png", "jpeg"]
+    type=["jpg", "jpeg", "png"]
 )
 
 if uploaded_file is not None:
@@ -58,10 +71,8 @@ if uploaded_file is not None:
         use_container_width=True
     )
 
-    # Preprocess image
     img_tensor = transform(image).unsqueeze(0)
 
-    # Prediction
     with torch.no_grad():
         output = model(img_tensor)
         probabilities = F.softmax(output, dim=1)[0]
@@ -70,6 +81,4 @@ if uploaded_file is not None:
     predicted_label = class_labels[predicted_class.item()]
     confidence_percent = confidence.item() * 100
 
-    st.success(
-        f"Prediction: **{predicted_label}** ({confidence_percent:.2f}%)"
-    )
+    st.success(f"Prediction: **{predicted_label}** ({confidence_percent:.2f}%)")
