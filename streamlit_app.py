@@ -73,4 +73,3 @@ if uploaded_file is not None:
     st.success(
         f"Prediction: **{predicted_label}** ({confidence_percent:.2f}%)"
     )
-```
