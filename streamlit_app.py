@@ -23,26 +23,31 @@ if not os.path.exists(MODEL_PATH):
     st.error("Model file not found: metal_fracture_classifier.pt")
     st.stop()
 
+# Load checkpoint first
+checkpoint = torch.load(MODEL_PATH, map_location=torch.device("cpu"))
+
+if isinstance(checkpoint, dict):
+    if "state_dict" in checkpoint:
+        checkpoint = checkpoint["state_dict"]
+    elif "model_state_dict" in checkpoint:
+        checkpoint = checkpoint["model_state_dict"]
+
+new_state_dict = {}
+for key, value in checkpoint.items():
+    new_key = key.replace("module.", "").replace("model.", "")
+    new_state_dict[new_key] = value
+
+# Build model same as training model
 model = models.resnet18(weights=None)
-model.fc = torch.nn.Linear(model.fc.in_features, len(class_labels))
+
+model.fc = torch.nn.Sequential(
+    torch.nn.Dropout(0.5),
+    torch.nn.Linear(model.fc.in_features, len(class_labels))
+)
 
 try:
-    checkpoint = torch.load(MODEL_PATH, map_location=torch.device("cpu"))
-
-    if isinstance(checkpoint, dict):
-        if "state_dict" in checkpoint:
-            checkpoint = checkpoint["state_dict"]
-        elif "model_state_dict" in checkpoint:
-            checkpoint = checkpoint["model_state_dict"]
-
-    new_state_dict = {}
-    for key, value in checkpoint.items():
-        new_key = key.replace("module.", "").replace("model.", "")
-        new_state_dict[new_key] = value
-
     model.load_state_dict(new_state_dict)
     model.eval()
-
 except Exception as e:
     st.error("Model loading error.")
     st.code(str(e))
@@ -64,12 +69,7 @@ uploaded_file = st.file_uploader(
 
 if uploaded_file is not None:
     image = Image.open(uploaded_file).convert("RGB")
-
-    st.image(
-        image,
-        caption="Uploaded Image",
-        use_container_width=True
-    )
+    st.image(image, caption="Uploaded Image", use_container_width=True)
 
     img_tensor = transform(image).unsqueeze(0)
 
